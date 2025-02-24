@@ -36,14 +36,14 @@ var calendarId = "xxxxxxxxxxxxxxxxxxxxxxx@group.calendar.google.com";
 var noLabelTitle = "Special Event";
 
 // CHANGE THIS TO 'var onlyBirthdays = true' IF YOU ONLY WANT TO COPY BIRTHDAYS, NOT SPECIAL EVENTS
-var onlyBirthdays = false;
+var onlyBirthdays = true;
 
 // CHANGE THIS TO 'var onlyContactLabel = true' IF YOU ONLY WANT TO COPY BIRTHDAYS FOR CONTACTS WITH A SPECIFIC LABEL
 // DON'T FORGET TO SET THE contactLabelID BELOW IF THIS IS true
-var onlyContactLabel = false;
+var onlyContactLabel = true;
 // TO GET THE contactLabelID OPEN https://contacts.google.com/ CLICK YOUR LABEL AND NOTE THE PAGE ADDRESS
 // THE LAST PART OF THE ADDRESS IS THE contactLabelID: https://contacts.google.com/label/[contactLabelID]
-var contactLabelID = "xxxxxxxxxxxxxx";
+var contactLabelID = "23067c8a8d803ee2"; // Work
 
 // REMINDER IN MINUTES
 // addReminder must be set to none, email or popup. When using 'none' the calendar's default reminder will be applied, if set.
@@ -98,7 +98,7 @@ function createSpecialEventsForAllContacts(calendarId) {
           // Process Birthdays
           const birthdays = connection.birthdays || [];
           birthdays.forEach(birthday => {
-            createOrUpdateEvent(calendarService, calendarId, contactName, birthday.date, `${contactName}'s Birthday`);
+            createOrUpdateEvent(calendarService, calendarId, contactName, birthday.date, `🎉 ${contactName}`);
           });
         }
         // Process Special Events (e.g., anniversaries, custom events with labels)
@@ -106,7 +106,7 @@ function createSpecialEventsForAllContacts(calendarId) {
           const events = connection.events || [];
           events.forEach(event => {
             const eventLabel = event.formattedType || noLabelTitle; // Use the label from formattedType or a default
-            createOrUpdateEvent(calendarService, calendarId, contactName, event.date, `${contactName}'s ${eventLabel}`);
+            createOrUpdateEvent(calendarService, calendarId, contactName, event.date, `${eventLabel} ${contactName}`);
           });
         }
       });
@@ -203,53 +203,51 @@ function createOrUpdateEvent(calendarService, calendarId, contactName, eventDate
   }
 }
 
+// DELETE BIRTHDAYS
+// To be used if contacts have been deleted/edited, or you've changed the "'Birthday" text and want to start afresh.
+// Running this will delete ALL birthdays (from Contacts AND this script) on the special "Birthday" calendar
+// You can recreate Birthdays from Contacts by unchecking then rechecking "Sync from Contacts"
+// On the Settings page for the Birthdays calendar at this  address:
+// https://calendar.google.com/calendar/r/settings/birthdays
 
+// If you did not use the Official Birthday calendar for your events (i.e you set useOriginalBirthdayCalendar to false)
+// you can change the calendarToDeleteId to the Calendar ID of the calendar you used for your birthdays.
+// and the script will delete any events containing "Birthday" in the title.
 
-  // DELETE BIRTHDAYS
-  // To be used if contacts have been deleted/edited, or you've changed the "'Birthday" text and want to start afresh.
-  // Running this will delete ALL birthdays (from Contacts AND this script) on the special "Birthday" calendar
-  // You can recreate Birthdays from Contacts by unchecking then rechecking "Sync from Contacts"
-  // On the Settings page for the Birthdays calendar at this  address:
-  // https://calendar.google.com/calendar/r/settings/birthdays
+// For example:
+// calendarToDeleteId = "jhkhcjskchsjk26783chjsdkchsj178chsjdcks@group.calendar.google.com";
 
-  // If you did not use the Official Birthday calendar for your events (i.e you set useOriginalBirthdayCalendar to false)
-  // you can change the calendarToDeleteId to the Calendar ID of the calendar you used for your birthdays.
-  // and the script will delete any events containing "Birthday" in the title.
+// If you used a different word (e.g "Geburtstag") then change the word "Birthday" where you see:
+// event.summary.includes("Birthday") in the script below to: event.summary.includes("Geburtstag")
 
-  // For example:
-  // calendarToDeleteId = "jhkhcjskchsjk26783chjsdkchsj178chsjdcks@group.calendar.google.com";
+function deleteBirthdays() {
+  // CHANGE primary ONLY ON THIS LINE!
+  calendarToDeleteId = "xxxxxxxxxxxxxxxxxxxxxxx@group.calendar.google.com";
 
-  // If you used a different word (e.g "Geburtstag") then change the word "Birthday" where you see:
-  // event.summary.includes("Birthday") in the script below to: event.summary.includes("Geburtstag")
-
-  function deleteBirthdays() {
-    // CHANGE primary ONLY ON THIS LINE!
-    calendarToDeleteId = "primary";
-
-    try {
-    var pageToken;
-    do {
-      var response = Calendar.Events.list(calendarToDeleteId, { pageToken: pageToken });
-      var events = response.items;
+  try {
+  var pageToken;
+  do {
+    var response = Calendar.Events.list(calendarToDeleteId, { pageToken: pageToken });
+    var events = response.items;
+    
+    if (!events || events.length === 0) {
+      Logger.log("No events found.");
+      return;
+    }
+    
+    for (var i = 0; i < events.length; i++) {
+      var event = events[i];
       
-      if (!events || events.length === 0) {
-        Logger.log("No events found.");
-        return;
+      // CHANGE ...event.summary.includes("Birthday") to ...event.summary.includes("Geburtstag") if necessary:
+      if (event.eventType === "birthday" || (calendarToDeleteId != "primary" && event.summary.includes("🎉"))) {
+        // Checks if event type is a true birthday OR contains 'Birthday' if you aren't using the Official Birthday Calendar
+        Calendar.Events.remove(calendarToDeleteId, event.id);
+        Logger.log("Deleted event: " + event.summary);
       }
-      
-      for (var i = 0; i < events.length; i++) {
-        var event = events[i];
-        
-        // CHANGE ...event.summary.includes("Birthday") to ...event.summary.includes("Geburtstag") if necessary:
-        if (event.eventType === "birthday" || (calendarToDeleteId != "primary" && event.summary.includes("Birthday"))) {
-          // Checks if event type is a true birthday OR contains 'Birthday' if you aren't using the Official Birthday Calendar
-          Calendar.Events.remove(calendarToDeleteId, event.id);
-          Logger.log("Deleted event: " + event.summary);
-        }
-      }
-      
-      pageToken = response.nextPageToken;
-    } while (pageToken);
+    }
+    
+    pageToken = response.nextPageToken;
+  } while (pageToken);
   } catch (e) {
     Logger.log("Error: " + e.message);
   }
